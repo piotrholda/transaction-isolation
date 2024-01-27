@@ -70,12 +70,11 @@ class DirtyReadTest {
         def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         def.setIsolationLevel(isolationLevel);
         TransactionStatus status = platformTransactionManager.getTransaction(def);
-        Account account = accountRepository.getByIdNative(accountId);
-        int balance = account.getBalance();
+        int balance = accountRepository.getBalance(accountId);
         log.info("Thread 1: Read balance = {}", balance);
         balance = balance - 1;
         log.info("Thread 1: Save balance = {}", balance);
-        accountRepository.updateNative(accountId, balance);
+        accountRepository.updateBalance(accountId, balance);
         sleep(200);
         log.info("Thread 1: Rollback transaction 1.");
         platformTransactionManager.rollback(status);
@@ -88,12 +87,11 @@ class DirtyReadTest {
         def.setIsolationLevel(isolationLevel);
         TransactionStatus status = platformTransactionManager.getTransaction(def);
         sleep(100);
-        Account account = accountRepository.getByIdNative(accountId);
-        int balance = account.getBalance();
+        int balance = accountRepository.getBalance(accountId);
         log.info("Thread 2: Read balance = {}", balance);
         balance = balance - 1;
         log.info("Thread 2: Save balance = {}", balance);
-        accountRepository.updateNative(accountId, balance);
+        accountRepository.updateBalance(accountId, balance);
         log.info("Thread 2: Commit transaction 2.");
         platformTransactionManager.commit(status);
     }
@@ -104,7 +102,7 @@ class DirtyReadTest {
         new Thread(() -> spendAndRollback(accountId, isolationLevel)).start();
         new Thread(() -> spend(accountId, isolationLevel)).start();
         sleep(400);
-        int balance = accountRepository.getByIdNative(accountId).getBalance();
+        int balance = accountRepository.getBalance(accountId);
         log.info("Main thread: Read balance = {}", balance);
         return balance;
     }
