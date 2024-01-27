@@ -1,6 +1,5 @@
 package com.piotrholda.transaction.isolation;
 
-import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.util.TestPropertyValues;
@@ -36,7 +35,6 @@ class TransactionIsolationApplicationTests {
     }
 
     @Test
-    @Transactional
     void contextLoads() {
     }
 }
