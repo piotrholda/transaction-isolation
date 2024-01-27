@@ -29,7 +29,7 @@ import static org.springframework.transaction.TransactionDefinition.*;
 class DirtyReadTest {
 
     @Container
-    public static MSSQLServerContainer<?> sqlServerContainer =
+    private static MSSQLServerContainer<?> sqlServerContainer =
             new MSSQLServerContainer<>(DockerImageName.parse("mcr.microsoft.com/mssql/server:latest"))
                     .acceptLicense();
 
@@ -53,18 +53,18 @@ class DirtyReadTest {
     private AccountRepository accountRepository;
 
     @BeforeEach
-    private void setUp() {
+    void setUp() {
         transactionTemplate = new TransactionTemplate(platformTransactionManager);
     }
 
-    public Account createAccount() {
+    private Account createAccount() {
         Account account = new Account();
         account.setBalance(1);
         log.info("Main thread: Create account with balance = 1");
         return accountRepository.save(account);
     }
 
-    public void spendAndRollback(int accountId, int isolationLevel) {
+    private void spendAndRollback(int accountId, int isolationLevel) {
         DefaultTransactionDefinition def = new DefaultTransactionDefinition();
         def.setName("Transaction 1");
         def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -80,7 +80,7 @@ class DirtyReadTest {
         platformTransactionManager.rollback(status);
     }
 
-    public void spend(int accountId, int isolationLevel) {
+    private void spend(int accountId, int isolationLevel) {
         DefaultTransactionDefinition def = new DefaultTransactionDefinition();
         def.setName("Transaction 2");
         def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
