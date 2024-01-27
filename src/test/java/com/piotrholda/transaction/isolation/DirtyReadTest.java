@@ -1,8 +1,6 @@
 package com.piotrholda.transaction.isolation;
 
-import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +8,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -23,14 +20,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED;
-import static org.springframework.transaction.TransactionDefinition.ISOLATION_READ_UNCOMMITTED;
-import static org.springframework.transaction.annotation.Propagation.NEVER;
+import static org.springframework.transaction.TransactionDefinition.*;
 
 @Slf4j
 @SpringBootTest
 @Testcontainers
-@ActiveProfiles("test")
 @ContextConfiguration(initializers = DirtyReadTest.Initializer.class)
 class DirtyReadTest {
 
@@ -58,19 +52,10 @@ class DirtyReadTest {
     @Autowired
     private AccountRepository accountRepository;
 
-    @Autowired
-    private SessionFactory sessionFactory;
-
-    @Autowired
-    private EntityManager entityManager;
-
     @BeforeEach
     private void setUp() {
         transactionTemplate = new TransactionTemplate(platformTransactionManager);
     }
-
-    // https://stackoverflow.com/questions/24338150/how-to-manually-force-a-commit-in-a-transactional-method
-    // https://www.baeldung.com/spring-programmatic-transaction-management
 
     public Account createAccount() {
         Account account = new Account();
@@ -88,17 +73,9 @@ class DirtyReadTest {
         Account account = accountRepository.getByIdNative(accountId);
         int balance = account.getBalance();
         log.info("Thread 1: Read balance = {}", balance);
-/*
-            if (balance < 1) {
-                throw new IllegalStateException("Insufficient funds.");
-            }
-*/
         balance = balance - 1;
         log.info("Thread 1: Save balance = {}", balance);
         accountRepository.updateNative(accountId, balance);
-        //account.setBalance(balance);
-        //entityManager.persist(account);
-        //accountRepository.save(account);
         sleep(200);
         log.info("Thread 1: Rollback transaction 1.");
         platformTransactionManager.rollback(status);
@@ -114,17 +91,9 @@ class DirtyReadTest {
         Account account = accountRepository.getByIdNative(accountId);
         int balance = account.getBalance();
         log.info("Thread 2: Read balance = {}", balance);
-/*
-            if (balance < 1) {
-                throw new IllegalStateException("Insufficient funds");
-            }
-*/
         balance = balance - 1;
         log.info("Thread 2: Save balance = {}", balance);
         accountRepository.updateNative(accountId, balance);
-        //account.setBalance(balance);
-        //entityManager.persist(account);
-        //accountRepository.save(account);
         log.info("Thread 2: Commit transaction 2.");
         platformTransactionManager.commit(status);
     }
@@ -147,8 +116,26 @@ class DirtyReadTest {
     }
 
     @Test
+    void shouldNotReadDirtyStateWhenDefault() {
+        int balance = executeTransactions(ISOLATION_DEFAULT);
+        assertThat(balance).isEqualTo(0);
+    }
+
+    @Test
     void shouldNotReadDirtyStateWhenReadCommited() {
         int balance = executeTransactions(ISOLATION_READ_COMMITTED);
+        assertThat(balance).isEqualTo(0);
+    }
+
+    @Test
+    void shouldNotReadDirtyStateWhenRepeatableRead() {
+        int balance = executeTransactions(ISOLATION_REPEATABLE_READ);
+        assertThat(balance).isEqualTo(0);
+    }
+
+    @Test
+    void shouldNotReadDirtyStateWhenSerializable() {
+        int balance = executeTransactions(ISOLATION_SERIALIZABLE);
         assertThat(balance).isEqualTo(0);
     }
 
